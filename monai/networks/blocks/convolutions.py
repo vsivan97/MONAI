@@ -16,6 +16,7 @@ import torch
 import torch.nn as nn
 
 from monai.networks.blocks import ADN
+from monai.networks.blocks.evonorm import EvoNormLayer
 from monai.networks.layers.convutils import same_padding, stride_minus_kernel_padding
 from monai.networks.layers.factories import Conv
 
@@ -80,6 +81,7 @@ class Convolution(nn.Sequential):
         dilation: Union[Sequence[int], int] = 1,
         groups: int = 1,
         bias: bool = True,
+        evonorm: bool = True,
         conv_only: bool = False,
         is_transposed: bool = False,
         padding: Optional[Union[Sequence[int], int]] = None,
@@ -123,7 +125,15 @@ class Convolution(nn.Sequential):
 
         self.add_module("conv", conv)
 
-        if not conv_only:
+        if evonorm:
+            self.add_module(
+                "adn",
+                EvoNormLayer(
+                    in_channels=out_channels
+                )
+            )
+
+        elif not conv_only:
             self.add_module(
                 "adn",
                 ADN(
@@ -213,6 +223,7 @@ class ResidualUnit(nn.Module):
                 strides=sstrides,
                 kernel_size=kernel_size,
                 adn_ordering=adn_ordering,
+                evonorm=True,
                 act=act,
                 norm=norm,
                 dropout=dropout,
