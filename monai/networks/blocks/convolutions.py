@@ -127,7 +127,7 @@ class Convolution(nn.Sequential):
 
         if evonorm:
             self.add_module(
-                "adn",
+                "evonorm",
                 EvoNormLayer(
                     in_channels=out_channels
                 )

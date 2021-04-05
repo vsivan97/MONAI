@@ -15,6 +15,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from monai.networks.blocks import Convolution
+from monai.networks.blocks.evonorm import EvoNormLayer
 from monai.networks.layers import Conv, Norm, Pool, same_padding
 
 
@@ -22,7 +23,7 @@ def get_conv_block(
     spatial_dims: int,
     in_channels: int,
     out_channels: int,
-    act_norm: nn.Module,
+    # act_norm: nn.Module,
     kernel_size: Union[Sequence[int], int] = 3,
     strides: int = 1,
     padding: Optional[Union[Tuple[int, ...], int]] = None,
