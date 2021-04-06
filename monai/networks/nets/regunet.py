@@ -22,6 +22,8 @@ from monai.networks.blocks.regunet_block import (
     get_deconv_block,
 )
 
+from monai.networks.blocks.evonorm import EvoNormLayer
+
 
 class RegUNet(nn.Module):
     """
@@ -44,6 +46,7 @@ class RegUNet(nn.Module):
         num_channel_initial: int,
         depth: int,
         out_kernel_initializer: Optional[str] = "kaiming_uniform",
+        evonorm: Optional[EvoNormLayer] = None,
         out_activation: Optional[str] = None,
         out_channels: int = 3,
         extract_levels: Optional[Tuple[int]] = None,
@@ -82,6 +85,7 @@ class RegUNet(nn.Module):
         self.extract_levels = extract_levels
         self.pooling = pooling
         self.concat_skip = concat_skip
+        self.evonorm = evonorm
 
         if isinstance(encode_kernel_sizes, int):
             encode_kernel_sizes = [encode_kernel_sizes] * (self.depth + 1)
@@ -94,12 +98,12 @@ class RegUNet(nn.Module):
 
         # init layers
         # all lists start with d = 0
-        self.encode_convs = None
-        self.encode_pools = None
-        self.bottom_block = None
+        self.encode_convs   = None
+        self.encode_pools   = None
+        self.bottom_block   = None
         self.decode_deconvs = None
-        self.decode_convs = None
-        self.output_block = None
+        self.decode_convs   = None
+        self.output_block   = None
 
         # build layers
         self.build_layers()
@@ -146,12 +150,14 @@ class RegUNet(nn.Module):
                 in_channels=in_channels,
                 out_channels=out_channels,
                 kernel_size=kernel_size,
+                evonorm=self.evonorm,
             ),
             RegistrationResidualConvBlock(
                 spatial_dims=self.spatial_dims,
                 in_channels=out_channels,
                 out_channels=out_channels,
                 kernel_size=kernel_size,
+                evonorm=self.evonorm,
             ),
         )
 
@@ -169,12 +175,14 @@ class RegUNet(nn.Module):
                 in_channels=in_channels,
                 out_channels=out_channels,
                 kernel_size=kernel_size,
+                evonorm=self.evonorm,
             ),
             RegistrationResidualConvBlock(
                 spatial_dims=self.spatial_dims,
                 in_channels=out_channels,
                 out_channels=out_channels,
                 kernel_size=kernel_size,
+                evonorm=self.evonorm,
             ),
         )
 
@@ -229,6 +237,10 @@ class RegUNet(nn.Module):
         image_size = x.shape[2:]
         skips = []  # [0, ..., depth - 1]
         encoded = x
+
+        if self.encode_convs is None or self.encode_pools is None:
+            raise ValueError
+
         for encode_conv, encode_pool in zip(self.encode_convs, self.encode_pools):
             skip = encode_conv(encoded)
             encoded = encode_pool(skip)
@@ -236,6 +248,9 @@ class RegUNet(nn.Module):
         decoded = self.bottom_block(encoded)
 
         outs = [decoded]
+
+        if self.decode_convs is None or self.decode_deconvs is None:
+            raise ValueError
 
         # [depth - 1, ..., min_extract_level]
         for i, (decode_deconv, decode_conv) in enumerate(zip(self.decode_deconvs, self.decode_convs)):

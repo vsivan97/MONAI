@@ -3,13 +3,19 @@
 import random
 import copy
 
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, Set
 import torch
 import torch.nn as nn
 
 # from monai.networks.layers.factories import Act, Dropout, Norm, split_args
 from monai.utils import has_option
 from .evonorm_primitives import PRIMITIVES
+
+class EvonormParameters():
+    def __init__(self):
+        self.nodes: List
+        self.adjacency_list: List
+
 
 class EvoNormLayer(nn.Module):
     """
@@ -23,35 +29,74 @@ class EvoNormLayer(nn.Module):
     """
     def __init__(
         self,
-        in_channels:int,
-        max_nodes:int = 14,
-        max_arity:int = 2,
+        in_channels: int,
+        parameters: Optional[EvonormParameters] = None,
+        max_nodes: int = 14,
+        max_arity: int = 2,
     ):
         """Initializes the EvoNorm Graph
 
         Args:
             in_channels: number of input channels
+            parameters: specifies the parameters of the evonorm layer
             max_nodes: maximum number of nodes in the graph
+            max_arity: max number of arguments that a node can operate on
         """
         super().__init__()
-        self.v0 = nn.Parameter(torch.zeros(in_channels), requires_grad=True).view(1, in_channels, 1, 1)
-        self.v1 = nn.Parameter(torch.ones(in_channels), requires_grad=True).view(1, in_channels, 1, 1)
-        self.nodes = [nn.Identity(),
-                      lambda x: self.v0,
-                      lambda x: self.v1,
-                      lambda x: nn.Parameter(torch.zeros(in_channels), requires_grad=False)]
-        
-        self.nodes_connected_to_input = set([0])
-        
-        self.adjacency_list = [[] for _ in self.nodes]
+
+        self.in_channels = in_channels
         self.max_nodes = max_nodes
         self.max_arity = max_arity
+
+        self.v0 = nn.Parameter(torch.zeros(in_channels), requires_grad=True).view(1, in_channels, 1, 1, 1)
+        self.v1 = nn.Parameter(torch.ones(in_channels), requires_grad=True).view(1, in_channels, 1, 1, 1)
+
+        # def change_v0_if_needed(x):
+        #     if x.size(1) !=  self.in_channels:
+        #         import pdb; pdb.set_trace()
+        #         self.in_channels = x.size(1)
+        #         self.v0 = nn.Parameter(torch.zeros(in_channels), requires_grad=True).view(1, in_channels, 1, 1)
+        #         self.v1 = nn.Parameter(torch.ones(in_channels), requires_grad=True).view(1, in_channels, 1, 1)
+        #
+        #     return self.v0
+        #
+        # def change_v1_if_needed(x):
+        #     if x.size(1) !=  self.in_channels:
+        #         import pdb; pdb.set_trace()
+        #         self.in_channels = x.size(1)
+        #         self.v0 = nn.Parameter(torch.zeros(in_channels), requires_grad=True).view(1, in_channels, 1, 1)
+        #         self.v1 = nn.Parameter(torch.ones(in_channels), requires_grad=True).view(1, in_channels, 1, 1)
+        #
+        #     return self.v1
+
+        self.nodes = [nn.Identity(),
+                      lambda x: nn.Parameter(torch.zeros(in_channels), requires_grad=True).view(1, in_channels, 1, 1, 1),
+                      lambda x: nn.Parameter(torch.ones(in_channels), requires_grad=True).view(1, in_channels, 1, 1, 1),
+                      lambda x: nn.Parameter(torch.zeros_like(x), requires_grad=False)]
+
+        if parameters:
+            self.nodes += parameters.nodes
+            self.adjacency_list = parameters.adjacency_list
+        else:
+            self.adjacency_list = [[] for _ in self.nodes]
+
+    @property
+    def parameters(self) -> EvonormParameters:
+        parameters = EvonormParameters()
+        parameters.nodes = copy.deepcopy(self.nodes[4:])
+        parameters.adjacency_list = copy.deepcopy(self.adjacency_list)
+        return parameters
+
+    # def __str__(self):
+    #     forward_nodes, _ = self.get_forward_nodes_()
+    #     # outstr = "Forward nodes: " + str([self.nodes[i] for i in forward_nodes]) + "\n"
+    #     outstr += f"Channel dim: {self.in_channels}"
+    #     return outstr
+    #
 
     def mutate(self):
         """Mutates the graph
         """
-        assert len(self.nodes) < self.max_nodes
-
         new_node = random.choice(PRIMITIVES)
         if type(new_node) is list:
             new_node = random.choice(new_node)
@@ -61,23 +106,22 @@ class EvoNormLayer(nn.Module):
         new_node_index = len(self.nodes)
 
         parent_indexes = random.sample([i for i in range(len(self.nodes))], num_parents)
+
         while True:
             for index in parent_indexes:
-                if index in self.nodes_connected_to_input:
+                if index == 0 or index in self.adjacency_list[0]:
                     break
             else:
                 parent_indexes = random.sample([i for i in range(len(self.nodes))], num_parents)
                 continue
-            break 
-        
+            break
+
         for index in parent_indexes:
             self.adjacency_list[index].append(new_node_index)
-        
+
         self.adjacency_list.append([])
         self.nodes.append(new_node)
-        self.nodes_connected_to_input.add(new_node_index)
-        for pi in parent_indexes:
-            self.nodes_connected_to_input.add(pi)
+        self.add_module(str(new_node), new_node)
 
     def forward(self, x):
         """Performs a forward-pass over the computational graph
@@ -85,10 +129,10 @@ class EvoNormLayer(nn.Module):
         output_node_indexes, inputs_dict = self.get_forward_nodes_()
         if len(output_node_indexes) == 0:
             return self.nodes[0](x)
-    
+
         intermediate_outs = {}
         for node in output_node_indexes:
-            if node not in inputs_dict: 
+            if node not in inputs_dict:
                 intermediate_outs[node] = self.nodes[node](x)
                 continue
             inputs = [intermediate_outs[i] for i in inputs_dict[node]]
@@ -107,7 +151,7 @@ class EvoNormLayer(nn.Module):
         input_index = 0
         output_index = len(self.nodes)-1
         node_paths = []
-        for input_index in self.nodes_connected_to_input:
+        for input_index, _ in enumerate(self.nodes):
             node_paths += self.traverse_dag_(input_index)
 
         output_paths = [path for path in node_paths if output_index in path]

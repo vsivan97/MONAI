@@ -196,7 +196,6 @@ Conv = LayerFactory()
 Pool = LayerFactory()
 Pad = LayerFactory()
 
-
 @Dropout.factory_function("dropout")
 def dropout_factory(dim: int) -> Type[Union[nn.Dropout, nn.Dropout2d, nn.Dropout3d]]:
     types = (nn.Dropout, nn.Dropout2d, nn.Dropout3d)

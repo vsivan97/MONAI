@@ -81,7 +81,7 @@ class Convolution(nn.Sequential):
         dilation: Union[Sequence[int], int] = 1,
         groups: int = 1,
         bias: bool = True,
-        evonorm: bool = True,
+        evonorm: Optional[EvoNormLayer] = None,
         conv_only: bool = False,
         is_transposed: bool = False,
         padding: Optional[Union[Sequence[int], int]] = None,
@@ -125,11 +125,12 @@ class Convolution(nn.Sequential):
 
         self.add_module("conv", conv)
 
-        if evonorm:
+        if evonorm is not None:
             self.add_module(
-                "evonorm",
+                "evonormish",
                 EvoNormLayer(
-                    in_channels=out_channels
+                    in_channels=out_channels,
+                    parameters=evonorm.parameters,
                 )
             )
 
@@ -193,6 +194,7 @@ class ResidualUnit(nn.Module):
         kernel_size: Union[Sequence[int], int] = 3,
         subunits: int = 2,
         adn_ordering: str = "NDA",
+        evonorm: Optional[EvoNormLayer] = None,
         act: Optional[Union[Tuple, str]] = "PRELU",
         norm: Optional[Union[Tuple, str]] = "INSTANCE",
         dropout: Optional[Union[Tuple, str, float]] = None,
@@ -223,7 +225,7 @@ class ResidualUnit(nn.Module):
                 strides=sstrides,
                 kernel_size=kernel_size,
                 adn_ordering=adn_ordering,
-                evonorm=True,
+                evonorm=evonorm,
                 act=act,
                 norm=norm,
                 dropout=dropout,

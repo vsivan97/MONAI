@@ -27,6 +27,7 @@ def get_conv_block(
     kernel_size: Union[Sequence[int], int] = 3,
     strides: int = 1,
     padding: Optional[Union[Tuple[int, ...], int]] = None,
+    evonorm: Optional[EvoNormLayer] = None,
     act: Optional[Union[Tuple, str]] = "RELU",
     norm: Optional[Union[Tuple, str]] = "BATCH",
     initializer: Optional[str] = "kaiming_uniform",
@@ -39,6 +40,7 @@ def get_conv_block(
         out_channels,
         kernel_size=kernel_size,
         strides=strides,
+        evonorm=evonorm,
         act=act,
         norm=norm,
         bias=False,
@@ -64,6 +66,7 @@ def get_conv_layer(
     in_channels: int,
     out_channels: int,
     kernel_size: Union[Sequence[int], int] = 3,
+    evonorm: Optional[EvoNormLayer] = None,
 ) -> nn.Module:
     padding = same_padding(kernel_size)
     return Convolution(
@@ -74,6 +77,7 @@ def get_conv_layer(
         bias=False,
         conv_only=True,
         padding=padding,
+        evonorm=evonorm,
     )
 
 
@@ -90,6 +94,7 @@ class RegistrationResidualConvBlock(nn.Module):
         out_channels: int,
         num_layers: int = 2,
         kernel_size: int = 3,
+        evonorm: Optional[EvoNormLayer] = None,
     ):
         """
 
@@ -109,10 +114,15 @@ class RegistrationResidualConvBlock(nn.Module):
                     in_channels=in_channels if i == 0 else out_channels,
                     out_channels=out_channels,
                     kernel_size=kernel_size,
+                    evonorm=evonorm,
                 )
                 for i in range(num_layers)
             ]
         )
+        if evonorm is None:
+            self.evonorms = [None for _ in range(num_layers)]
+        else:
+            self.evonorms = nn.ModuleList([EvoNormLayer(out_channels, evonorm.parameters) for _ in range(num_layers)])
         self.norms = nn.ModuleList([Norm[Norm.BATCH, spatial_dims](out_channels) for _ in range(num_layers)])
         self.acts = nn.ModuleList([nn.ReLU() for _ in range(num_layers)])
 
@@ -127,13 +137,21 @@ class RegistrationResidualConvBlock(nn.Module):
             with the same spatial size as ``x``
         """
         skip = x
-        for i, (conv, norm, act) in enumerate(zip(self.layers, self.norms, self.acts)):
-            x = conv(x)
-            x = norm(x)
+        for i, (conv, evonorm, norm, act) in enumerate(zip(self.layers, self.evonorms, self.norms, self.acts)):
+            # TODO
+            try:
+                x = conv(x)
+            except:
+                import pdb; pdb.set_trace()
+                x.size()
+            x = evonorm(x) if evonorm is not None else norm(x)
             if i == self.num_layers - 1:
                 # last block
                 x = x + skip
-            x = act(x)
+                # TODO: think about this deeply
+                # x = act(x)
+            if evonorm is None:
+                x = act(x)
         return x
 
 

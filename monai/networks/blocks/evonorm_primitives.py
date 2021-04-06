@@ -1,7 +1,15 @@
 import torch
 import torch.nn as nn
 
-class PrimitiveAdd(nn.Module):
+class EvonormPrimitive(nn.Module):
+    """Abstract base class for the evonorm primitive layers
+    """
+    def __init__(self):
+        if type(self) is EvonormPrimitive:
+            raise NotImplementedError
+        super().__init__()
+
+class PrimitiveAdd(EvonormPrimitive):
     """ Primitive Add Operation
     """
     def __init__(self):
@@ -11,7 +19,7 @@ class PrimitiveAdd(nn.Module):
     def forward(self, x, y):
         return torch.add(x, y)
 
-class PrimitiveMul(nn.Module):
+class PrimitiveMul(EvonormPrimitive):
     """Primitive Multiply Operation
     """
 
@@ -22,7 +30,7 @@ class PrimitiveMul(nn.Module):
     def forward(self, x, y):
         return torch.mul(x, y)
 
-class PrimitiveDiv(nn.Module):
+class PrimitiveDiv(EvonormPrimitive):
     """Primitive Division Operation
     """
 
@@ -31,10 +39,10 @@ class PrimitiveDiv(nn.Module):
         self.arity = 2
 
     def forward(self, x, y, epsilon=1e-6):
-        return torch.mul(x, y+epsilon)
+        return torch.div(x, y+epsilon)
 
 
-class PrimitiveMax(nn.Module):
+class PrimitiveMax(EvonormPrimitive):
     """Primitive Max Operation
     """
 
@@ -45,7 +53,7 @@ class PrimitiveMax(nn.Module):
     def forward(self, x, y):
         return torch.max(x, y)
 
-class PrimitiveSigmoid(nn.Module):
+class PrimitiveSigmoid(EvonormPrimitive):
     """Primitive sigmoid Operation
     """
 
@@ -56,7 +64,7 @@ class PrimitiveSigmoid(nn.Module):
     def forward(self, x):
         return torch.sigmoid(x)
 
-class PrimitiveNeg(nn.Module):
+class PrimitiveNeg(EvonormPrimitive):
     """Primitive negation operation
     """
 
@@ -67,7 +75,7 @@ class PrimitiveNeg(nn.Module):
     def forward(self, x):
         return x * -1
 
-class PrimitiveTanh(nn.Module):
+class PrimitiveTanh(EvonormPrimitive):
     """Primitive tanh operation
     """
 
@@ -78,7 +86,7 @@ class PrimitiveTanh(nn.Module):
     def forward(self, x):
         return torch.tanh(x)
 
-class PrimitiveExp(nn.Module):
+class PrimitiveExp(EvonormPrimitive):
     """Primitive exp operation
     """
     def __init__(self):
@@ -88,7 +96,7 @@ class PrimitiveExp(nn.Module):
     def forward(self, x):
         return torch.exp(x)
 
-class PrimitiveLog(nn.Module):
+class PrimitiveLog(EvonormPrimitive):
     """Primitive log operation
     """
     def __init__(self):
@@ -98,7 +106,7 @@ class PrimitiveLog(nn.Module):
     def forward(self, x):
         return torch.sign(x) * torch.log(torch.abs(x))
 
-class PrimitiveAbs(nn.Module):
+class PrimitiveAbs(EvonormPrimitive):
     """Primitive abs operation
     """
     def __init__(self):
@@ -108,7 +116,7 @@ class PrimitiveAbs(nn.Module):
     def forward(self, x):
         return torch.abs(x)
 
-class PrimitiveSquare(nn.Module):
+class PrimitiveSquare(EvonormPrimitive):
     """Primitive square operation
     """
     def __init__(self):
@@ -118,7 +126,7 @@ class PrimitiveSquare(nn.Module):
     def forward(self, x):
         return torch.square(x)
 
-class PrimitiveSqrt(nn.Module):
+class PrimitiveSqrt(EvonormPrimitive):
     """Primitive sqrt operation
     """
     def __init__(self):
@@ -126,11 +134,11 @@ class PrimitiveSqrt(nn.Module):
         self.arity = 1
 
     def forward(self, x):
-        return torch.sign(x) * torch.sqrt(torch.abs(x))    
+        return torch.sign(x) * torch.sqrt(torch.abs(x))
 
 ################### Primitive mean
 
-class PrimitiveMeanBWH(nn.Module):
+class PrimitiveMeanBWH(EvonormPrimitive):
     """Primitive mean operation along b, w, h dimensions
     """
     def __init__(self):
@@ -141,7 +149,7 @@ class PrimitiveMeanBWH(nn.Module):
         # expect input in B, C, H, W format
         return torch.mean(x, dim=[0, 2, 3], keepdim=True).expand_as(x)
 
-class PrimitiveMeanWHC(nn.Module):
+class PrimitiveMeanWHC(EvonormPrimitive):
     """Primitive mean operation along w, h, c dimensions
     """
     def __init__(self):
@@ -152,7 +160,7 @@ class PrimitiveMeanWHC(nn.Module):
         # expect input in B, C, H, W format
         return torch.mean(x, dim=[1, 2, 3], keepdim=True).expand_as(x)
 
-class PrimitiveMeanWH(nn.Module):
+class PrimitiveMeanWH(EvonormPrimitive):
     """Primitive mean operation along w, h dimensions
     """
     def __init__(self):
@@ -163,7 +171,7 @@ class PrimitiveMeanWH(nn.Module):
         # expect input in B, C, H, W format
         return torch.mean(x, dim=[2, 3], keepdim=True).expand_as(x)
 
-class PrimitiveMeanWHCGrouped(nn.Module):
+class PrimitiveMeanWHCGrouped(EvonormPrimitive):
     """Primitive mean operation along w, h, cgrouped dimensions
     """
     def __init__(self):
@@ -177,13 +185,13 @@ class PrimitiveMeanWHCGrouped(nn.Module):
         for channel in range(num_channels):
             grouped_mean = torch.mean(x[:,channel,:,:], dim=[1,2], keepdim=True)
             channel_grp[:,channel,:,:] = grouped_mean.expand_as(x[:,channel,:,:])
-        
+
         return channel_grp
 
 
 ################### Primitive STD
 
-class PrimitiveStdBWH(nn.Module):
+class PrimitiveStdBWH(EvonormPrimitive):
     """Primitive std operation along b, w, h dimensions
     """
     def __init__(self):
@@ -194,7 +202,7 @@ class PrimitiveStdBWH(nn.Module):
         # expect input in B, C, H, W format
         return torch.mean(torch.square(x), dim=[0, 2, 3], keepdim=True).expand_as(x)
 
-class PrimitiveStdWHC(nn.Module):
+class PrimitiveStdWHC(EvonormPrimitive):
     """Primitive Std operation along w, h, c dimensions
     """
     def __init__(self):
@@ -205,7 +213,7 @@ class PrimitiveStdWHC(nn.Module):
         # expect input in B, C, H, W format
         return torch.mean(torch.square(x), dim=[1, 2, 3], keepdim=True).expand_as(x)
 
-class PrimitiveStdWH(nn.Module):
+class PrimitiveStdWH(EvonormPrimitive):
     """Primitive Std operation along w, h dimensions
     """
     def __init__(self):
@@ -216,7 +224,7 @@ class PrimitiveStdWH(nn.Module):
         # expect input in B, C, H, W format
         return torch.mean(torch.square(x), dim=[2, 3], keepdim=True).expand_as(x)
 
-class PrimitiveStdWHCGrouped(nn.Module):
+class PrimitiveStdWHCGrouped(EvonormPrimitive):
     """Primitive Std operation along w, h, cgrouped dimensions
     """
     def __init__(self):
@@ -230,12 +238,11 @@ class PrimitiveStdWHCGrouped(nn.Module):
         for channel in range(num_channels):
             grouped_Std = torch.mean(torch.square(x[:,channel,:,:]), dim=[1,2], keepdim=True)
             channel_grp[:,channel,:,:] = grouped_Std.expand_as(x[:,channel,:,:])
-        
         return channel_grp
 
 ################### Primitive STD Centered
 
-class PrimitiveStdcenteredBWH(nn.Module):
+class PrimitiveStdcenteredBWH(EvonormPrimitive):
     """Primitive std centered operation along b, w, h dimensions
     """
     def __init__(self):
@@ -246,7 +253,7 @@ class PrimitiveStdcenteredBWH(nn.Module):
         # expect input in B, C, H, W format
         return torch.std(x, dim=[0, 2, 3], keepdim=True).expand_as(x)
 
-class PrimitivestdcenteredWHC(nn.Module):
+class PrimitivestdcenteredWHC(EvonormPrimitive):
     """Primitive stdcentered operation along w, h, c dimensions
     """
     def __init__(self):
@@ -257,7 +264,7 @@ class PrimitivestdcenteredWHC(nn.Module):
         # expect input in B, C, H, W format
         return torch.std(x, dim=[1, 2, 3], keepdim=True).expand_as(x)
 
-class PrimitivestdcenteredWH(nn.Module):
+class PrimitivestdcenteredWH(EvonormPrimitive):
     """Primitive stdcentered operation along w, h dimensions
     """
     def __init__(self):
@@ -268,7 +275,7 @@ class PrimitivestdcenteredWH(nn.Module):
         # expect input in B, C, H, W format
         return torch.std(x, dim=[2, 3], keepdim=True).expand_as(x)
 
-class PrimitivestdcenteredWHCGrouped(nn.Module):
+class PrimitivestdcenteredWHCGrouped(EvonormPrimitive):
     """Primitive stdcentered operation along w, h, cgrouped dimensions
     """
     def __init__(self):
@@ -282,7 +289,6 @@ class PrimitivestdcenteredWHCGrouped(nn.Module):
         for channel in range(num_channels):
             grouped_stdcentered = torch.std(x[:,channel,:,:], dim=[1,2], keepdim=True)
             channel_grp[:,channel,:,:] = grouped_stdcentered.expand_as(x[:,channel,:,:])
-        
         return channel_grp
 
 
