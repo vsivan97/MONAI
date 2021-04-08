@@ -127,7 +127,7 @@ class Convolution(nn.Sequential):
 
         if evonorm is not None:
             self.add_module(
-                "evonormish",
+                "evonorm",
                 EvoNormLayer(
                     in_channels=out_channels,
                     parameters=evonorm.parameters,

@@ -51,24 +51,6 @@ class EvoNormLayer(nn.Module):
         self.v0 = nn.Parameter(torch.zeros(in_channels), requires_grad=True).view(1, in_channels, 1, 1, 1)
         self.v1 = nn.Parameter(torch.ones(in_channels), requires_grad=True).view(1, in_channels, 1, 1, 1)
 
-        # def change_v0_if_needed(x):
-        #     if x.size(1) !=  self.in_channels:
-        #         import pdb; pdb.set_trace()
-        #         self.in_channels = x.size(1)
-        #         self.v0 = nn.Parameter(torch.zeros(in_channels), requires_grad=True).view(1, in_channels, 1, 1)
-        #         self.v1 = nn.Parameter(torch.ones(in_channels), requires_grad=True).view(1, in_channels, 1, 1)
-        #
-        #     return self.v0
-        #
-        # def change_v1_if_needed(x):
-        #     if x.size(1) !=  self.in_channels:
-        #         import pdb; pdb.set_trace()
-        #         self.in_channels = x.size(1)
-        #         self.v0 = nn.Parameter(torch.zeros(in_channels), requires_grad=True).view(1, in_channels, 1, 1)
-        #         self.v1 = nn.Parameter(torch.ones(in_channels), requires_grad=True).view(1, in_channels, 1, 1)
-        #
-        #     return self.v1
-
         self.nodes = [nn.Identity(),
                       lambda x: nn.Parameter(torch.zeros(in_channels), requires_grad=True).view(1, in_channels, 1, 1, 1),
                       lambda x: nn.Parameter(torch.ones(in_channels), requires_grad=True).view(1, in_channels, 1, 1, 1),
@@ -86,13 +68,6 @@ class EvoNormLayer(nn.Module):
         parameters.nodes = copy.deepcopy(self.nodes[4:])
         parameters.adjacency_list = copy.deepcopy(self.adjacency_list)
         return parameters
-
-    # def __str__(self):
-    #     forward_nodes, _ = self.get_forward_nodes_()
-    #     # outstr = "Forward nodes: " + str([self.nodes[i] for i in forward_nodes]) + "\n"
-    #     outstr += f"Channel dim: {self.in_channels}"
-    #     return outstr
-    #
 
     def mutate(self):
         """Mutates the graph

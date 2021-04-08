@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+from typing import Sequence, Union, Optional
 
 import torch
 import torch.nn as nn
@@ -17,6 +17,7 @@ import torch.nn as nn
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnection
+from monai.networks.blocks.evonorm import EvoNormLayer
 from monai.utils import alias, export
 
 __all__ = ["UNet", "Unet", "unet"]
@@ -35,6 +36,7 @@ class UNet(nn.Module):
         kernel_size: Union[Sequence[int], int] = 3,
         up_kernel_size: Union[Sequence[int], int] = 3,
         num_res_units: int = 0,
+        evonorm: Optional[EvoNormLayer] = None,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
         dropout=0.0,
@@ -71,6 +73,7 @@ class UNet(nn.Module):
         self.act = act
         self.norm = norm
         self.dropout = dropout
+        self.evonorm = evonorm
 
         def _create_block(
             inc: int, outc: int, channels: Sequence[int], strides: Sequence[int], is_top: bool
@@ -124,6 +127,7 @@ class UNet(nn.Module):
                 subunits=self.num_res_units,
                 act=self.act,
                 norm=self.norm,
+                evonorm=self.evonorm,
                 dropout=self.dropout,
             )
         return Convolution(
@@ -134,6 +138,7 @@ class UNet(nn.Module):
             kernel_size=self.kernel_size,
             act=self.act,
             norm=self.norm,
+            evonorm=self.evonorm,
             dropout=self.dropout,
         )
 
@@ -163,6 +168,7 @@ class UNet(nn.Module):
             kernel_size=self.up_kernel_size,
             act=self.act,
             norm=self.norm,
+            evonorm=self.evonorm,
             dropout=self.dropout,
             conv_only=is_top and self.num_res_units == 0,
             is_transposed=True,
@@ -178,6 +184,7 @@ class UNet(nn.Module):
                 subunits=1,
                 act=self.act,
                 norm=self.norm,
+                evonorm=self.evonorm,
                 dropout=self.dropout,
                 last_conv_only=is_top,
             )
