@@ -48,19 +48,26 @@ class EvoNormLayer(nn.Module):
         self.max_nodes = max_nodes
         self.max_arity = max_arity
 
-        self.v0 = nn.Parameter(torch.zeros(in_channels), requires_grad=True).view(1, in_channels, 1, 1, 1)
-        self.v1 = nn.Parameter(torch.ones(in_channels), requires_grad=True).view(1, in_channels, 1, 1, 1)
+        self.v0 = nn.Parameter(torch.zeros(in_channels), requires_grad=False).view(1, in_channels, 1, 1, 1)
+        self.v1 = nn.Parameter(torch.ones(in_channels), requires_grad=False).view(1, in_channels, 1, 1, 1)
+
+        self.zero: Optional[nn.Parameter] = None
 
         self.nodes = [nn.Identity(),
-                      lambda x: nn.Parameter(torch.zeros(in_channels), requires_grad=True).view(1, in_channels, 1, 1, 1),
-                      lambda x: nn.Parameter(torch.ones(in_channels), requires_grad=True).view(1, in_channels, 1, 1, 1),
-                      lambda x: nn.Parameter(torch.zeros_like(x), requires_grad=False)]
+                      lambda x: self.v0,
+                      lambda x: self.v1,
+                      lambda x: self.set_zero_(x)]
 
         if parameters:
             self.nodes += parameters.nodes
             self.adjacency_list = parameters.adjacency_list
         else:
             self.adjacency_list = [[] for _ in self.nodes]
+
+    def set_zero_(self, x) -> nn.Parameter:
+        if not self.zero:
+            self.zero = nn.Parameter(torch.zeros_like(x), requires_grad=False)
+        return self.zero
 
     @property
     def parameters(self) -> EvonormParameters:
