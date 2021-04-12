@@ -310,12 +310,14 @@ PRIMITIVES = [
     [PrimitiveMeanBWH,
     PrimitiveMeanWHC,
     PrimitiveMeanWH,
-    PrimitiveMeanWHCGrouped,
-    PrimitiveStdBWH,
+    PrimitiveMeanWHCGrouped,],
+
+    [PrimitiveStdBWH,
     PrimitiveStdWHC,
     PrimitiveStdWH,
-    PrimitiveStdWHCGrouped,
-    PrimitiveStdcenteredBWH,
+    PrimitiveStdWHCGrouped,],
+
+    [PrimitiveStdcenteredBWH,
     PrimitivestdcenteredWHC,
     PrimitivestdcenteredWH,
     PrimitivestdcenteredWHCGrouped]
