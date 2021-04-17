@@ -12,6 +12,37 @@
 import torch
 from torch import nn
 
+class AdaptiveActivation(nn.Module):
+    """Adaptive activation layer
+    """
+    def __init__(self, alpha=1.0):
+        super().__init__()
+        self.activations = [
+            nn.ELU,
+            nn.Hardshrink,
+            nn.Hardtanh,
+            nn.LeakyReLU,
+            nn.LogSigmoid,
+            nn.ReLU,
+            nn.PReLU,
+            nn.SELU,
+            nn.CELU,
+            nn.Sigmoid,
+            nn.Softplus,
+            nn.Softshrink,
+            nn.Softsign,
+            nn.Tanh,
+            nn.Tanhshrink
+        ]
+
+        self.linears = [nn.Linear for _ in self.activations]
+
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
+        in_channels = input.size(1)
+        out = torch.zeros_like(input)
+        for activation, linear in zip(self.activations, self.linears):
+            out += linear(in_features=in_channels, out_features=in_channels, bias=False)(activation()(out))
+        return out
 
 class Swish(nn.Module):
     r"""Applies the element-wise function:

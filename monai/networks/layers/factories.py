@@ -247,6 +247,10 @@ Act.add_factory_callable("tanh", lambda: nn.modules.Tanh)
 Act.add_factory_callable("softmax", lambda: nn.modules.Softmax)
 Act.add_factory_callable("logsoftmax", lambda: nn.modules.LogSoftmax)
 
+@Act.factory_function("adaptive")
+def adaptive_factory():
+    from monai.networks.blocks.activation import AdaptiveActivation
+    return AdaptiveActivation
 
 @Act.factory_function("swish")
 def swish_factory():
