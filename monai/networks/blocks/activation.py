@@ -11,38 +11,46 @@
 
 import torch
 from torch import nn
+import torch.nn.functional as F
 
 class AdaptiveActivation(nn.Module):
     """Adaptive activation layer
     """
+
     def __init__(self, alpha=1.0):
         super().__init__()
         self.activations = [
-            nn.ELU,
-            nn.Hardshrink,
-            nn.Hardtanh,
-            nn.LeakyReLU,
-            nn.LogSigmoid,
-            nn.ReLU,
-            nn.PReLU,
-            nn.SELU,
-            nn.CELU,
-            nn.Sigmoid,
-            nn.Softplus,
-            nn.Softshrink,
-            nn.Softsign,
-            nn.Tanh,
-            nn.Tanhshrink
+            nn.ELU(),
+            nn.Hardshrink(),
+            nn.Hardtanh(),
+            nn.LeakyReLU(),
+            nn.LogSigmoid(),
+            nn.ReLU(),
+            nn.PReLU(),
+            nn.SELU(),
+            nn.CELU(),
+            nn.Sigmoid(),
+            nn.Softplus(),
+            nn.Softshrink(),
+            nn.Softsign(),
+            nn.Tanh(),
+            nn.Tanhshrink()
         ]
 
-        self.linears = [nn.Linear for _ in self.activations]
+        self.P = [torch.nn.Parameter(torch.randn(1, requires_grad=True))
+                  for _ in self.activations]
+
+        for activation, param in zip(self.activations, self.P):
+            activation_name = str(activation).split("(")[0]
+            self.add_module(name=activation_name, module=activation)
+            self.register_parameter(name=activation_name + "p", param=param)
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
-        in_channels = input.size(1)
         out = torch.zeros_like(input)
-        for activation, linear in zip(self.activations, self.linears):
-            out += linear(in_features=in_channels, out_features=in_channels, bias=False)(activation()(out))
+        for activation, param in zip(self.activations, self.P):
+            out += param.clamp(-1, 1) * activation(input)
         return out
+
 
 class Swish(nn.Module):
     r"""Applies the element-wise function:
